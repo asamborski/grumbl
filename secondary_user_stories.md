@@ -1,7 +1,7 @@
 # Secondary User Stories 
 
 ## Sentiment Analysis 
-As a user viewing a dish with reviews, I want to get a sense for the general consensus or feeling toward this dish. I can do this by looking at the sentiment icon above the dish's reviews. This icon will indicate reviewer's felings about the dish on a scale of completely negative to completely positive. 
+As a user viewing a dish with reviews, I want to get a sense for the general consensus or feeling toward this dish. I can do this by looking at the sentiment icon above the dish's reviews. This icon will indicate reviewers' felings about the dish on a scale of completely negative to completely positive. 
 
 ## Locating Food: Filtering Options
 As a user, when I query a certain dish, I'd like to be able to specify how I'd like the results to be displayed. 
@@ -22,10 +22,10 @@ As a user, I want to be able to organize dishes into categorized lists. When I n
 When I'm browsing through dishes in my search results, I want a simple way to add this dish to one or more of my lists. The "Add to list" button will allow me to choose which list to add the dish to, or to create a new list containing the dish.
 
 ### Favorites
-As a user, I want a default location to save my favorite dishes without having to make a new list for them. "Favorites" is a pre-made list that I have my default as a user.
+As a user, I want a default location to save my favorite dishes without having to make a new list for them. "Favorites" is a pre-made list that I have by default as a user.
 
 #### Favorite a Dish
-I want a simple way to add dishes to my Favorites. To add a dish to my favorites, I press the the heart-shaped favorite icon next to a dish shown in my search query results. I navigate to Favorites from my Lists or my User Profile page
+I want a simple way to add dishes to my Favorites. To add a dish to my Favorites, I press the the heart-shaped Favorite icon next to a dish shown in my search query results. I can navigate to Favorites from my Lists or my User Profile page
 
 ## Bookmarks
 As a user, I want a place to record dishes I'd like to try or save for later. When I navigate to the Bookmarks page from my User Profile, I will see all the dishes I bookmarked sorted by date. I can also sort this items by the three filtering options listed under **Locating Food: Filtering Options**. 
