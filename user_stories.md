@@ -18,5 +18,5 @@ As a user, I want to be able to see all the information on a certain dish in one
 As a user, after I have eaten a dish, I want to be able to leave a review so that other users can make decisions on whether or not they want to eat the same dish. If I navigate to the dish's page, I want to see an option to "Leave a Review." When I select this option, I will be navigated to a page where I can write a review with a title and submit it. 
 
 ## User Profile
-As a user, I want to have a user profile that stores my food preferences and can provide a list of my saved dishes that I have enjoyed previously. When I navigate to my user profile, I will see my username/name as well as a list of dishes that I have starred. 
+As a user, I want to have a user profile that stores my food preferences and can display my dish lists (see **Lists** in secondary user stories) and dishes I enjoyed previously. When I navigate to my user profile, I will see my username/name as well as my lists, Favorites, and Bookmarks.
 
