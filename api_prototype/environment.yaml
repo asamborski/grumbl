@@ -1,0 +1,39 @@
+name: flaskapp
+channels:
+- !!python/unicode
+  'defaults'
+dependencies:
+- !!python/unicode
+  'click=6.7=py35_0'
+- !!python/unicode
+  'flask=0.12=py35_0'
+- !!python/unicode
+  'itsdangerous=0.24=py35_0'
+- !!python/unicode
+  'jinja2=2.9.5=py35_0'
+- !!python/unicode
+  'markupsafe=0.23=py35_2'
+- !!python/unicode
+  'openssl=1.0.2k=1'
+- !!python/unicode
+  'pip=9.0.1=py35_1'
+- !!python/unicode
+  'python=3.5.3=1'
+- !!python/unicode
+  'readline=6.2=2'
+- !!python/unicode
+  'setuptools=27.2.0=py35_0'
+- !!python/unicode
+  'sqlite=3.13.0=0'
+- !!python/unicode
+  'tk=8.5.18=0'
+- !!python/unicode
+  'werkzeug=0.12=py35_0'
+- !!python/unicode
+  'wheel=0.29.0=py35_0'
+- !!python/unicode
+  'xz=5.2.2=1'
+- !!python/unicode
+  'zlib=1.2.8=3'
+prefix: !!python/unicode '//anaconda/envs/flaskapp'
+
