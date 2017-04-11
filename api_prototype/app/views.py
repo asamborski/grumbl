@@ -47,5 +47,3 @@ def yelp_auth():
 		return resp.json()['access_token']
 	else:
 		raise RuntimeError("Couldn't get token. Received status code %s".format(resp.status_code))
-
-		
