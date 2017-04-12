@@ -5,6 +5,11 @@ from app import app
 from app import config_secret
 import requests
 import json
+from flask.ext.pymongo import PyMongo
+
+app.config['MONGO_DBNAME'] = "yelp" 
+mongo = PyMongo(app)
+
 
 BOS_LAT = 42.3601
 BOS_LONG = -71.0589
@@ -25,12 +30,21 @@ def search_post():
 		print("You didn't provide a search term!")
 		return json.dumps('')
 
+	result = mongo.db.yelp.find_one({'term': term, 'latitude': BOS_LAT, 'longitude': BOS_LONG})
+
+	if result is not None:
+		# print result
+		business_names = [entry['name'] for entry in result['businesses']]
+		str_names = "<br>".join(business_names)
+		return str_names
+
 	resp = requests.get('https://api.yelp.com/v3/businesses/search',
 		params={'term': term, 'latitude' : BOS_LAT, 'longitude' : BOS_LONG},
 		headers={'Authorization' : "Bearer " + yelp_auth()})
 
 	if resp.status_code == 200:
 		print('Response 200 for search')
+		mongo.db.yelp.insert_one({'term': term, 'latitude': BOS_LAT, 'longitude': BOS_LONG, 'businesses': resp.json()['businesses']})
 		business_names = [entry['name'] for entry in resp.json()['businesses']]
 		str_names = "<br>".join(business_names)
 		return str_names
@@ -47,3 +61,4 @@ def yelp_auth():
 		return resp.json()['access_token']
 	else:
 		raise RuntimeError("Couldn't get token. Received status code %s".format(resp.status_code))
+
