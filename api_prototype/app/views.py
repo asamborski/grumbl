@@ -5,11 +5,10 @@ from app import app
 from app import config_secret
 import requests
 import json
-from flask.ext.pymongo import PyMongo
+from flask_pymongo import PyMongo
 
 app.config['MONGO_DBNAME'] = 'grumbl'
 mongo = PyMongo(app)
-
 
 BOS_LAT = 42.3601
 BOS_LONG = -71.0589
@@ -75,7 +74,6 @@ def search_post():
 			return json.dumps('')
 		return json.dumps(resp.json()) 
 		
-
 def yelp_auth():
 	resp = requests.post('https://api.yelp.com/oauth2/token', data=config_secret.yelp_auth)
 

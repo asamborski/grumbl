@@ -1,0 +1,20 @@
+// // MongoDB schema for restaurants collection in grumbl database
+// // Storing search terms and the restaurant results corresponding to those terms
+
+// {
+// 	"title": "restaurants",
+// 	"type": "object",
+// 	"properties": {
+// 		"term": {
+// 			"type": "string"
+// 		},
+// 		"result": {
+// 			"type": "array",
+// 			"items":
+// 				{
+// 				"type": "string"
+// 				}
+// 		}
+// 	},
+// 	"required": ["term", "result"]
+// }
