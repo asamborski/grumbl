@@ -9,7 +9,7 @@ from flask_pymongo import PyMongo
 
 # Configure database
 app.config['MONGO_DBNAME'] = 'grumbl'
-app.config['MONGO_URI'] = 'mongodb://127.0.0.1:27017/grumbl' ## TODO change MONGO_URI for AWS mongo ##
+#app.config['MONGO_URI'] = 'mongodb://127.0.0.1:27017/grumbl' ## TODO change MONGO_URI for AWS mongo ##
 
 mongo = PyMongo(app)
 
@@ -70,3 +70,4 @@ def yelp_auth():
 		return resp.json()['access_token']
 	else:
 		raise RuntimeError("Couldn't get token. Received status code %s".format(resp.status_code))
+
