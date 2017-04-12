@@ -7,7 +7,7 @@ import requests
 import json
 from flask.ext.pymongo import PyMongo
 
-app.config['MONGO_DBNAME'] = "yelp" 
+app.config['MONGO_DBNAME'] = 'grumbl'
 mongo = PyMongo(app)
 
 
@@ -26,33 +26,55 @@ def search():
 def search_post():
 	term = request.form['search-term']
 
-	if term == None:
-		print("You didn't provide a search term!")
-		return json.dumps('')
+	# if info in local DB, display info from there 
+	restaurant_results = mongo.db.restaurants.find({"term":term})
+	# result = mongo.db.yelp.find_one({'term': term, 'latitude': BOS_LAT, 'longitude': BOS_LONG})
 
-	result = mongo.db.yelp.find_one({'term': term, 'latitude': BOS_LAT, 'longitude': BOS_LONG})
+	if restaurant_results.count() > 0:
+ 		document = [doc for doc in restaurant_results][0]
+ 		return "<br>".join(document['result'])
 
-	if result is not None:
-		# print result
-		business_names = [entry['name'] for entry in result['businesses']]
-		str_names = "<br>".join(business_names)
-		return str_names
-
-	resp = requests.get('https://api.yelp.com/v3/businesses/search',
-		params={'term': term, 'latitude' : BOS_LAT, 'longitude' : BOS_LONG},
-		headers={'Authorization' : "Bearer " + yelp_auth()})
-
-	if resp.status_code == 200:
-		print('Response 200 for search')
-		mongo.db.yelp.insert_one({'term': term, 'latitude': BOS_LAT, 'longitude': BOS_LONG, 'businesses': resp.json()['businesses']})
-		business_names = [entry['name'] for entry in resp.json()['businesses']]
-		str_names = "<br>".join(business_names)
-		return str_names
+# 	if result is not None:
+# 		# print result
+# 		business_names = [entry['name'] for entry in result['businesses']]
+# 		str_names = "<br>".join(business_names)
+# 		return str_names
 
 	else:
-		print('Response was not 200 (%s) for search'.format(resp.status_code))
-		return json.dumps('')
-	return json.dumps(resp.json())
+	# otherwise, make API call, store results in DB table(s), and display data as before
+
+		if term == None:
+			print("You didn't provide a search term!")
+			return json.dumps('')
+
+		## Yelp Search API call and result filtering
+		resp = requests.get('https://api.yelp.com/v3/businesses/search',
+			params={'term': term, 'latitude' : BOS_LAT, 'longitude' : BOS_LONG, \
+					'categories': 'restaurants', 'radius': 3218},
+			headers={'Authorization' : "Bearer " + yelp_auth()})
+
+		if resp.status_code == 200:
+			print('Response 200 for search')
+			business_names = [entry['name'] for entry in resp.json()['businesses']]
+			str_names = "<br>".join(business_names)
+
+			# CACHE: insert new search term and corresponding results into collection
+			mongo.db.restaurants.insert({"term" : term, "result" : business_names})
+
+			return str_names
+
+	# 	if resp.status_code == 200:
+	# 		print('Response 200 for search')
+	# 		mongo.db.yelp.insert_one({'term': term, 'latitude': BOS_LAT, 'longitude': BOS_LONG, 'businesses': resp.json()['businesses']})
+	# 		business_names = [entry['name'] for entry in resp.json()['businesses']]
+	# 		str_names = "<br>".join(business_names)
+	# 		return str_names
+
+		else:
+			print('Response was not 200 (%s) for search'.format(resp.status_code))
+			return json.dumps('')
+		return json.dumps(resp.json()) 
+		
 
 def yelp_auth():
 	resp = requests.post('https://api.yelp.com/oauth2/token', data=config_secret.yelp_auth)
