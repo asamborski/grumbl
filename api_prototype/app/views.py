@@ -29,6 +29,10 @@ oauth_url = 'http://127.0.0.1:5000/oauth_callback'
 # USED WITH AWS
 hosted_oauth_url = 'http://grumbl.amsamborski.com/oauth_callback'
 
+@app.route('/test')
+def test():
+	return render_template('results.html')
+
 @app.route('/login')
 def login():
 	url = 'https://www.facebook.com/v2.9/dialog/oauth?'
@@ -123,7 +127,8 @@ def search_post():
 		else:
 			print('Response was not 200 (%s) for search'.format(resp.status_code))
 			return json.dumps('')
-		return json.dumps(resp.json()) 
+		# return json.dumps(resp.json()) 
+		return render_template('results.html')
 		
 def yelp_auth():
 	resp = requests.post('https://api.yelp.com/oauth2/token', data=config_secret.yelp_auth)
