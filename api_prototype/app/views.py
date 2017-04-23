@@ -1,20 +1,69 @@
 # views.py
 
-from flask import render_template, request
-from app import app
-from app import config_secret
+from flask import render_template, request, url_for, session, redirect, g
+from app import app, config_secret 
+from requests import request as rq
 import requests
 import json
 from flask_pymongo import PyMongo
+from facebook import get_user_from_cookie, GraphAPI
 
 # Configure database
 app.config['MONGO_DBNAME'] = 'grumbl'
-#app.config['MONGO_URI'] = 'mongodb://127.0.0.1:27017/grumbl' ## TODO change MONGO_URI for AWS mongo ##
-
 mongo = PyMongo(app)
 
 BOS_LAT = 42.3601
 BOS_LONG = -71.0589
+
+#----------------------------------------
+# FACEBOOK AUTHENTICATION BELOW
+#----------------------------------------
+
+facebook_auth = config_secret.facebook_auth
+FB_APP_ID = facebook_auth['client_id']
+FB_APP_NAME = facebook_auth['app_name']
+FB_APP_SECRET = facebook_auth['client_secret']
+
+# USED WITH LOCAL
+oauth_url = 'http://127.0.0.1:5000/oauth_callback'
+
+# USED WITH AWS
+hosted_oauth_url = 'http://grumbl.amsamborski.com/oauth_callback'
+
+@app.route('/login')
+def login():
+	url = 'https://www.facebook.com/v2.9/dialog/oauth?'
+	client_id = 'client_id={}'.format(FB_APP_ID)
+	redir = '&redirect_uri={}'.format(oauth_url)
+	url = url + client_id + redir
+
+	return redirect(url)
+
+@app.route('/oauth_callback')
+def parse_token():
+	token = request.args.get('code') 
+
+	prefix = 'https://graph.facebook.com/v2.9/oauth/'
+	access = 'access_token?client_id={}'.format(FB_APP_ID)
+	redir = '&redirect_uri={}'.format(oauth_url)
+	secret = '&client_secret={}'.format(FB_APP_SECRET)
+	issued_code = '&code={}'.format(token)
+
+	get_access_token = prefix + access + redir + secret + issued_code
+ 
+	response = rq(method="GET", url=get_access_token)
+	raw = response.json()
+
+	access_token = raw.get('access_token')
+	expires_in = raw.get('expires_in') 
+	print('\nAccess token is {}'.format(access_token))
+	
+	return render_template("index.html")
+
+@app.route('/logout')
+def logout():
+    session.pop('user', None)
+    return redirect(url_for('index'))
 
 @app.route('/')
 def index():
