@@ -7,8 +7,10 @@
 
     <!-- Bootstrap core CSS -->
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+
     <!-- Custom styles for this template -->
     <link href="https://getbootstrap.com/examples/jumbotron-narrow/jumbotron-narrow.css" rel="stylesheet">
+    
     <!-- Latest compiled JavaScript -->
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script> 
 
@@ -25,8 +27,16 @@
             <li role="presentation"><a href="/">Home</a></li>
             <li role="presentation"><a href="/search">Search</a></li>
             <li role="presentation"><a href="/profile">Profile</a></li>
-            <li role="presentation"><a href="/logout">Log Out</a></li>
+            {% if user %}
+              <li role="presentation"><a href="/logout">Log Out</a></li>
+            {% else %}
+              <li role="presentation"><a href="/login">Log In</a></li>
+            {% endif %}
           </ul>
+          <h3 class="text-muted">Grumbl</h3>
+          {% if user %}
+            <li>Hi {{ user.name }}!</li>
+          {% endif %}
         </nav>
       </div>
       {% block body %}

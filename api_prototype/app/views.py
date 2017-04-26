@@ -1,10 +1,11 @@
 # views.py
 
-from flask import render_template, request, url_for, session, redirect, g
+from flask import render_template, request, url_for, session, redirect, g, make_response
 from app import app, config_secret 
 from requests import request as rq
 import requests
 import json
+import urllib
 from flask_pymongo import PyMongo
 from facebook import get_user_from_cookie, GraphAPI
 
@@ -29,6 +30,15 @@ oauth_url = 'http://127.0.0.1:5000/oauth_callback'
 # USED WITH AWS
 hosted_oauth_url = 'http://grumbl.amsamborski.com/oauth_callback'
 
+@app.route('/')
+def index():
+	if request.cookies.get('userID') is not None:
+		result = mongo.db.users.find({'id': request.cookies.get('userID')})
+		print(result)
+		return render_template("index.html", user=result)
+	else:
+		return render_template('index.html')
+
 @app.route('/test')
 def test():
 	return render_template('results.html')
@@ -36,9 +46,13 @@ def test():
 @app.route('/login')
 def login():
 	url = 'https://www.facebook.com/v2.9/dialog/oauth?'
-	client_id = 'client_id={}'.format(FB_APP_ID)
-	redir = '&redirect_uri={}'.format(oauth_url)
-	url = url + client_id + redir
+
+	args = {
+		'client_id': FB_APP_ID,
+		'redirect_uri': oauth_url
+	}
+
+	url = url + urllib.parse.urlencode(args)
 
 	return redirect(url)
 
@@ -46,37 +60,50 @@ def login():
 def parse_token():
 	token = request.args.get('code') 
 
-	prefix = 'https://graph.facebook.com/v2.9/oauth/'
-	access = 'access_token?client_id={}'.format(FB_APP_ID)
-	redir = '&redirect_uri={}'.format(oauth_url)
-	secret = '&client_secret={}'.format(FB_APP_SECRET)
-	issued_code = '&code={}'.format(token)
+	args = {
+		'client_id': FB_APP_ID,
+		'redirect_uri': oauth_url,
+		'client_secret': FB_APP_SECRET,
+		'code': token
+	}
 
-	get_access_token = prefix + access + redir + secret + issued_code
- 
-	response = rq(method="GET", url=get_access_token)
-	raw = response.json()
+	r = api('v2.9/oauth/access_token', params=args)
 
-	access_token = raw.get('access_token')
-	expires_in = raw.get('expires_in') 
-	print('\nAccess token is {}'.format(access_token))
+	access_token = r['access_token']
+	expires_in = r['expires_in']
+
+	print('Access token is %s' % access_token)
 	
-	return render_template("index.html")
+	me = api('/v2.5/me', params={'access_token': access_token})
+
+	# Add to DB
+	mongo.db.users.update({'fb_id': me['id']}, {"name" : me['name'], "fb_id" : me['id'], 'access_token': access_token},  upsert=True)
+
+	resp = make_response(redirect('/'))
+	resp.set_cookie('userID', me['id'])
+	return resp
+
+def api(endpoint, params):
+	r = requests.get('https://graph.facebook.com/%s' % endpoint, params=params)
+	if r.status_code == 200:
+		return r.json()
+	else:
+		print('[%d] %s' % (r.status_code, r.text))
+		return None
+
 
 @app.route('/logout')
 def logout():
-    session.pop('user', None)
-    return redirect(url_for('index'))
+	resp = make_response(redirect('/'))
+	resp.set_cookie('userID', '', expires=0)
+	return resp
 
-@app.route('/')
-def index():
-    return render_template("index.html")
 
 @app.route('/search')
 def search():
 	return render_template("search.html")
 
-@app.route('/', methods=['POST'])
+@app.route('/results', methods=['POST'])
 def search_post():
 	term = request.form['search-term']
 
@@ -85,8 +112,8 @@ def search_post():
 	# result = mongo.db.yelp.find_one({'term': term, 'latitude': BOS_LAT, 'longitude': BOS_LONG})
 
 	if restaurant_results.count() > 0:
- 		document = [doc for doc in restaurant_results][0]
- 		return "<br>".join(document['result'])
+		document = [doc for doc in restaurant_results][0]
+		return "<br>".join(document['result'])
 
 # 	if result is not None:
 # 		# print result
@@ -115,20 +142,11 @@ def search_post():
 			# CACHE: insert new search term and corresponding results into collection
 			mongo.db.restaurants.insert({"term" : term, "result" : business_names})
 
-			return str_names
-
-	# 	if resp.status_code == 200:
-	# 		print('Response 200 for search')
-	# 		mongo.db.yelp.insert_one({'term': term, 'latitude': BOS_LAT, 'longitude': BOS_LONG, 'businesses': resp.json()['businesses']})
-	# 		business_names = [entry['name'] for entry in resp.json()['businesses']]
-	# 		str_names = "<br>".join(business_names)
-	# 		return str_names
+			return render_template('results.html', results = resp.json()['businesses'])
 
 		else:
 			print('Response was not 200 (%s) for search'.format(resp.status_code))
-			return json.dumps('')
-		# return json.dumps(resp.json()) 
-		return render_template('results.html')
+			return json.dumps('')		
 		
 def yelp_auth():
 	resp = requests.post('https://api.yelp.com/oauth2/token', data=config_secret.yelp_auth)
