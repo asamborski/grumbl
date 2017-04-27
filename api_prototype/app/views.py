@@ -1,6 +1,6 @@
 # views.py
 
-from flask import render_template, request, url_for, session, redirect, g, make_response
+from flask import render_template, request, url_for, session, redirect, make_response
 from app import app, config_secret 
 from requests import request as rq
 import requests
@@ -9,8 +9,8 @@ import urllib
 from flask_pymongo import PyMongo
 from app import reviews
 import string
-# from facebook import get_user_from_cookie, GraphAPI
 # from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from pprint import pprint
 
 app.config['MONGO_DBNAME'] = 'grumbl'
 mongo = PyMongo(app)
@@ -20,30 +20,77 @@ NY_LAT, NY_LONG = 40.7128, -74.0059
 
 punctuation = string.punctuation
 
-# FACEBOOK AUTHENTICATION INFO
-facebook_auth = config_secret.facebook_auth
-FB_APP_ID = facebook_auth['client_id']
-FB_APP_NAME = facebook_auth['app_name']
-FB_APP_SECRET = facebook_auth['client_secret']
-
 # USED WITH LOCAL
 oauth_url = 'http://127.0.0.1:5000/oauth_callback' 
 
+
+##### Auth Retrieval Functions #####
+def yelp_auth():
+	'''Yelp API authorization'''
+	resp = requests.post('https://api.yelp.com/oauth2/token', data=config_secret.yelp_auth)
+
+	if resp.status_code == 200:
+		return resp.json()['access_token']
+	else:
+		raise RuntimeError("Couldn't get token. Received status code " + str(resp.status_code))
+
+
+def eatstreet_auth():
+	'''EatStreet API authorization'''
+	key = config_secret.eatstreet_auth['api-key']
+	return key
+
+
+def facebook_auth():
+	# FACEBOOK AUTHENTICATION INFO
+	facebook_auth = config_secret.facebook_auth
+	FB_APP_ID = facebook_auth['client_id']
+	FB_APP_NAME = facebook_auth['app_name']
+	FB_APP_SECRET = facebook_auth['client_secret']
+	return FB_APP_ID, FB_APP_SECRET, FB_APP_NAME
+
+
+def eatstreet_api(endpoint, params):
+	url = "https://api.eatstreet.com/publicapi"
+	headers = {'x-access-token': eatstreet_auth(), 'cache-control': "no-cache"}
+	return api(url=url, endpoint=endpoint, params=params, headers=headers)
+
+def yelp_api(endpoint, params, headers):
+	url = 'https://api.yelp.com/'
+	return api(url, endpoint, params, headers)
+
+def fb_api(endpoint, params):
+	url = 'https://graph.facebook.com'
+	return api(url, endpoint, params)
+
+def api(url, endpoint, params={}, headers={}):
+	r = requests.get('%s/%s' % (url, endpoint), params=params, headers=headers)
+	if r.status_code == 200:
+		print(r.text)
+		return r.json()
+	else:
+		print('%s\n[%d] %s' % (r.url, r.status_code, r.text))
+		return None
+
+def respond(path, cookie):
+	if cookie is not None:
+		result = mongo.db.users.find_one({'fb_id': cookie})
+		if result is not None:
+			return render_template(path, user=result)
+		else:
+			return render_template(path)
+	else:
+		return render_template(path)
+
 @app.route('/')
 def index():
-	if request.cookies.get('userID') is not None:
-
-		result = mongo.db.users.find({'id': request.cookies.get('userID')})
-		print(result)
-
-		return render_template("index.html", user=result)
-
-	else:
-		return render_template('index.html')
+	return respond("index.html", request.cookies.get('userID'))
  
 
 @app.route('/login') 
 def login():
+	FB_APP_ID, FB_APP_SECRET, FB_APP_NAME = facebook_auth()
+
 	url = 'https://www.facebook.com/v2.9/dialog/oauth?'
 
 	args = {
@@ -59,6 +106,8 @@ def login():
 
 @app.route('/oauth_callback')
 def parse_token():
+	FB_APP_ID, FB_APP_SECRET, FB_APP_NAME = facebook_auth()
+
 	token = request.args.get('code') 
 
 	args = {
@@ -88,164 +137,171 @@ def parse_token():
 	resp.set_cookie('userID', me['id'])
 	return resp
 
-def fb_api(endpoint, params):
-	r = requests.get('https://graph.facebook.com/%s' % endpoint, params=params)
-	if r.status_code == 200:
-		return r.json()
-	else:
-		print('[%d] %s' % (r.status_code, r.text))
-		return None
+
+@app.route('/profile')
+def profile():
+	if request.cookies.get('userID') is not None:
+
+		result = mongo.db.users.find_one({'fb_id': request.cookies.get('userID')})
+
+		pprint(result)
+
+		if not 'picture' in result:
+			# Get Profile pic
+			picture = fb_api('%s/picture' % result.get('fb_id'), params={'type': 'large', 'redirect': False})
+
+			pprint(picture)
+
+			# Stick in DB
+			mongo.db.users.update(
+				{'_id': result.get('id')}, 
+				{'picture': picture['data']['url']}
+			)
+
+			# set user object to contain profile
+			result['picture'] = picture['data']['url']
+
+			pprint(result)
+
+		return render_template('profile.html', user=result)
+
+	else: 
+		return render_template('login.html')
 
 
 @app.route('/logout')
 def logout():
 	resp = make_response(redirect('/'))
+
+	# Set cookie back to 0	
 	resp.set_cookie('userID', '', expires=0)
+
+	# Set user's access cookie to ''
+ 
 	return resp
 
 
 @app.route('/search')
 def search():
-	return render_template("search.html")
+	return respond("search.html", request.cookies.get('userID'))
 
 
 @app.route('/results', methods=['POST'])
 def search_post():
-	term = request.form['search-term']
+	# Make sure the string is converted to lowercase
+	term = request.form['search-term'].lower()
+
+	if term == None:
+		print("You didn't provide a search term!")
+		return render_template("results.html")
 
 	# if info in local DB collection 'food', display info from there 
-	resResults_inDB = mongo.db.food.find({"term":term})
+	resResults_inDB = mongo.db.food.find_one({"term": term})
+
+	# resResults_inDB = None
 
 	# fix return result format (not just names)
-	if resResults_inDB.count() > 0:
-		businesses = [entry['resName'] for entry in resResults_inDB] # just returning names for now
+	if resResults_inDB is not None:
+		# just returning names for now
+		# businesses = [entry['resName'] for entry in resResults_inDB] 
 
-		return str(businesses)
+		pprint(resResults_inDB)
+
+		return render_template("results.html", results=resResults_inDB.get('result'), term=term)
 
 	else:
-	# otherwise, make API call, store results in DB table(s), and display data as before
-
-		if term == None:
-			print("You didn't provide a search term!")
-			return json.dumps('')
+		# otherwise, make API call, 
+		# store results in DB table(s), and display data as before
 
 		## EatStreet API – search for restaurants in city coordinates
-		url = "https://api.eatstreet.com/publicapi/v1/restaurant/search"
-		querystring = {"latitude":"40.7128","longitude":"-74.0059","method":"both","pickup-radius":"2","search":term}
-		headers = {'x-access-token': eatstreet_auth(), 'cache-control': "no-cache" }
+		params = {"latitude":"40.7128","longitude":"-74.0059","method":"both","pickup-radius":"2","search":term}
+		search_resp = eatstreet_api('v1/restaurant/search', params=params)
 
-		resp = requests.request("GET", url, headers=headers, params=querystring)
+		if search_resp is None:
+			return render_template("results.html")
 
-		if resp.status_code == 200:
-			# return results
-			print('Response 200 for restaurant search')
+		restaurants = search_resp.get('restaurants')
 
-			if len(resp.json()['restaurants']) > 0:
-				# print('FOUND 1 OR MORE RESTAURANTS)')
-				resResults = []
+		if len(restaurants) == 0:
+			return json.dumps(search_resp.json()) # Other response
+
+		resResults = []
+		count = 0
+		for restaurant in restaurants:
+
+			if count == 10: break # limit to 10 restaurants
+
+			resKey = restaurant.get('apiKey')
+
+			## EatStreet API – check for this restaurant's menu
+			menu_resp = eatstreet_api(endpoint='v1/restaurant/%s/menu' % str(resKey), params={"includeCustomizations": "false"})
+
+			if menu_resp is None:
+				print("The restaurant " + search_resp["name"] + " has no menu available. Moving on.")
+				continue
+
+			# If menu exists
+			# If so, this restaurant is an option				
+			resName = restaurant.get("name")
+			address = restaurant.get("streetAddress")
+			resLogoUrl = restaurant.get("logoUrl")
 			
-				count = 0
-				for res in resp.json()['restaurants']:
-		
-					if count == 10: break # limit to 10 restaurants
+			# Remove punctuation
+			resMenu = [item['name'].lower() for itemGroup in menu_resp for item in itemGroup['items']]
 
-					resKey = res['apiKey']
+			# Get this restaurant's Yelp biz id
+			yelp_resp = yelp_api('v3/businesses/search', params={'location': address, 'radius': 10}, headers={'Authorization' : "Bearer " + yelp_auth()})
 
-					## EatStreet API – check for this restaurant's menu
-					menuUrl = "https://api.eatstreet.com/publicapi/v1/restaurant/" + str(resKey) + "/menu"
-					menuQuery = {"includeCustomizations":"false"}
-					menuHeaders = {'x-access-token': eatstreet_auth(), 'cache-control': "no-cache"}
+			resStars = None # no Yelp restaurant stars unless rating is found
+			resLink = False # no Yelp restaurant link by default unless one is found
+			if yelp_resp is not None:
+				print('Response 200 for Yelp search')
 
-					menuResp = requests.request("GET", menuUrl, headers=menuHeaders, params=menuQuery)
-
-					# If menu exists; if so, this restaurant is an option
-					if menuResp.status_code == 200:
-						print('Response 200 for menu search')
-						
-						resName = res["name"]
-						resAddress = res["streetAddress"]
-						resLogoUrl = res["logoUrl"]
-						
-						# take out punctuation
-						resMenu = [item['name'].lower() for itemGroup in menuResp.json() for item in itemGroup['items']] #,
-
-						# Get this restaurant's Yelp biz id
-						yelp_resp = requests.get('https://api.yelp.com/v3/businesses/search',
-							params={'location':resAddress, 'radius': 10},
-							headers={'Authorization' : "Bearer " + yelp_auth()})
-
-						resStars = None # no Yelp restaurant stars unless rating is found
-						resLink = False # no Yelp restaurant link by default unless one is found
-						if yelp_resp.status_code == 200:
-							print('Response 200 for Yelp search')
-							if len(yelp_resp.json()['businesses']) > 0:
-								print("FOUND BUSINESS ON YELP!")
-								resId = [entry['id'] for entry in yelp_resp.json()['businesses']][0]
-								resStars = [entry['rating'] for entry in yelp_resp.json()['businesses']][0]
-								resLink = 'https://www.yelp.com/biz/' + resId
+				businesses = yelp_resp.get('businesses')
+				if len(businesses) > 0:
+					print("FOUND BUSINESS ON YELP!")
+					resId = businesses[0]['id']
+					resStars = businesses[0]['rating']
+					resLink = 'https://www.yelp.com/biz/' + resId
 
 
-						# Check menu for term and add restaurant to results if dish is found
-						for itemName in resMenu:
-							# dishReviews = None # by default, no reviews
-							if term in itemName:
+			# Check menu for term and add restaurant to results if dish is found
+			for itemName in resMenu:
+				# dishReviews = None # by default, no reviews
+				if term in itemName:
 
-								# Yelp web-scraping for reviews about specific food item #### TODO: FIX THIS
-								# if resLink:
-								# 	print('Searching through reviews for ' + str(term))
-								# 	dishReviews = reviews.getAllReviews(resLink, term)
-								# 	print('dishReviews: ' + str(dishReviews))
-								# 	if dishReviews != {}: print('FOUND REVIEW FOR ' + str(term))
+					# Yelp web-scraping for reviews about specific food item #### TODO: FIX THIS
+					# if resLink:
+					# 	print('Searching through reviews for ' + str(term))
+					# 	dishReviews = reviews.getAllReviews(resLink, term)
+					# 	print('dishReviews: ' + str(dishReviews))
+					# 	if dishReviews != {}: print('FOUND REVIEW FOR ' + str(term))
 
-								# Sentiment analysis on reviews about dish
-								# sid = SentimentIntensityAnalyzer()
+					# Sentiment analysis on reviews about dish
+					# sid = SentimentIntensityAnalyzer()
 
-								restaurantInfo = {"resKey":resKey,
-												  "resName":resName,
-												  "resAddress":resAddress,
-												  "resDish":itemName,
-												  'resStars':resStars,
-												  #"dishSentiment":dishReviews, 
-												  "resLogoUrl":resLogoUrl
-												 }
+					restaurantInfo = {"resKey": resKey,
+									  "resName": resName,
+									  "resAddress": address,
+									  "resDish": itemName,
+									  'resStars': resStars,
+									  #"dishSentiment":dishReviews, 
+									  "resLogoUrl": resLogoUrl
+									 }
 
-								resResults.append(restaurantInfo)
-
-					else:
-						print("The restaurant " + res["name"] + " has no menu available. Moving on.")
-						continue
-
-					count += 1
-
-				## CACHE: insert new search term and corresponding results into 'food' collection
-				## change mongo schema format
-				# mongo.db.food.insert({"term" : term, "result" : resResults})
-		
-				businesses = [(entry["resDish"], entry["resName"], entry["resStars"], entry['resAddress']) for entry in resResults]
-
-				return str(businesses)
-
-		else:
-			print('Response was not 200 (' + str(resp.status_code) + ') for search')
-			return json.dumps('')
-
-		return json.dumps(resp.json()) # Other response
+					resResults.append(restaurantInfo)
 
 
 
+			count += 1
 
-##### Auth Retrieval Functions #####
-def yelp_auth():
-	'''Yelp API authorization'''
-	resp = requests.post('https://api.yelp.com/oauth2/token', data=config_secret.yelp_auth)
+		## CACHE: insert new search term and corresponding results into 'food' collection
+		## change mongo schema format
+		mongo.db.food.insert({"term" : term, "result" : resResults})
 
-	if resp.status_code == 200:
-		return resp.json()['access_token']
-	else:
-		raise RuntimeError("Couldn't get token. Received status code " + str(resp.status_code))
+		# businesses = [(entry["resDish"], entry["resName"], entry["resStars"], entry['resAddress'], entry["resLogoUrl"]) for entry in resResults]
+		# print(businesses)
 
-def eatstreet_auth():
-	'''EatStreet API authorization'''
-	key = config_secret.eatstreet_auth['api-key']
-	return key
+		return render_template("results.html", results=resResults, term=term)
+
 

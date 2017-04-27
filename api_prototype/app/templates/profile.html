@@ -1,0 +1,37 @@
+<!-- profile.html-->
+
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+{% block body %}
+
+<div class="jumbotron">
+
+	{% if user.picture %}
+	<img src='{{user.picture}}' alt='profile picture'/>
+	{% else %}
+	<img src='http://enadcity.org/enadcity/wp-content/uploads/2017/02/profile-pictures.png' alt='profile picture'/>
+	{% endif %}
+
+	{% if user.name %}
+		<h1>{{user.name}}</h1>
+	{% else %}
+		<h1>Username</h1>
+	{% endif %}
+</div>
+
+
+<div class="row marketing">
+    <div class="col-lg-6">
+      <h4>Favorite Dishes</h4>
+      <p>Insert the favorite dishes here</p> 
+    </div>
+
+    <div class="col-lg-6">
+      <h4>Food Wish List</h4>
+      <p>Insert need-to-trys here</p> 
+    </div>
+</div>
+
+
+{% endblock %}
+
