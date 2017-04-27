@@ -3,8 +3,17 @@
 {% extends "base.html" %}
 {% block title %}Home{% endblock %}
 {% block body %}
+
 <div class="jumbotron">
-  <h1>Grumbl</h1>
-  <p class="lead">Hungry?</p>
+        <h1>Grumbl</h1>
+        <p class="lead">Craving a particular dish? Well you're in the right place.</p>
+        <p>Search for it on Grumbl, and we will show you all the nearby restaurants serving that item.</p>
+
+        {% if not user %}
+            <p><a class="btn btn-lg btn-success" href="/login" role="button">Login</a></p>
+        {% endif %}
 </div>
+
+
 {% endblock %}
+

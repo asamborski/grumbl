@@ -4,10 +4,20 @@
 <html lang="en">
   <head>
     <title>{% block title %}{% endblock %}</title>
+
     <!-- Bootstrap core CSS -->
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+
     <!-- Custom styles for this template -->
     <link href="https://getbootstrap.com/examples/jumbotron-narrow/jumbotron-narrow.css" rel="stylesheet">
+    
+    <!-- Latest compiled JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script> 
+
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.3/angular.min.js"></script>
+
+    <script src="http://code.angularjs.org/1.5.3/angular-route.min.js"></script>
+  
   </head>
   <body>
     <div class="container">
@@ -16,7 +26,17 @@
           <ul class="nav nav-pills pull-right">
             <li role="presentation"><a href="/">Home</a></li>
             <li role="presentation"><a href="/search">Search</a></li>
+            <li role="presentation"><a href="/profile">Profile</a></li>
+            {% if user %}
+              <li role="presentation"><a href="/logout">Log Out</a></li>
+            {% else %}
+              <li role="presentation"><a href="/login">Log In</a></li>
+            {% endif %}
           </ul>
+          <h3 class="text-muted">Grumbl</h3>
+          {% if user %}
+            <li>Hi {{ user.name }}!</li>
+          {% endif %}
         </nav>
       </div>
       {% block body %}
@@ -24,6 +44,6 @@
       <footer class="footer">
         <p>© 2017 Anurag Prasad / Tanatsigwa Hungwe / Ann Ming Samborski / Allen Miller</p>
       </footer>
-    </div> <!-- /container -->
+    </div> 
   </body>
 </html>
