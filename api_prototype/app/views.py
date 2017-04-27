@@ -198,15 +198,8 @@ def search_post():
 	# if info in local DB collection 'food', display info from there 
 	resResults_inDB = mongo.db.food.find_one({"term": term})
 
-	# resResults_inDB = None
-
 	# fix return result format (not just names)
 	if resResults_inDB is not None:
-		# just returning names for now
-		# businesses = [entry['resName'] for entry in resResults_inDB] 
-
-		pprint(resResults_inDB)
-
 		return render_template("results.html", results=resResults_inDB.get('result'), term=term)
 
 	else:
@@ -298,9 +291,6 @@ def search_post():
 		## CACHE: insert new search term and corresponding results into 'food' collection
 		## change mongo schema format
 		mongo.db.food.insert({"term" : term, "result" : resResults})
-
-		# businesses = [(entry["resDish"], entry["resName"], entry["resStars"], entry['resAddress'], entry["resLogoUrl"]) for entry in resResults]
-		# print(businesses)
 
 		return render_template("results.html", results=resResults, term=term)
 
