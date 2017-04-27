@@ -12,38 +12,33 @@ from facebook import get_user_from_cookie, GraphAPI
 app.config['MONGO_DBNAME'] = 'grumbl'
 mongo = PyMongo(app)
 
+# LOCATION
 BOS_LAT = 42.3601
 BOS_LONG = -71.0589
 
-#----------------------------------------
-# FACEBOOK AUTHENTICATION BELOW
-#----------------------------------------
-
+# FACEBOOK AUTHENTICATION INFO
 facebook_auth = config_secret.facebook_auth
 FB_APP_ID = facebook_auth['client_id']
 FB_APP_NAME = facebook_auth['app_name']
 FB_APP_SECRET = facebook_auth['client_secret']
 
 # USED WITH LOCAL
-oauth_url = 'http://127.0.0.1:5000/oauth_callback'
-
-# USED WITH AWS
-hosted_oauth_url = 'http://grumbl.amsamborski.com/oauth_callback'
+oauth_url = 'http://127.0.0.1:5000/oauth_callback' 
 
 @app.route('/')
 def index():
 	if request.cookies.get('userID') is not None:
+
 		result = mongo.db.users.find({'id': request.cookies.get('userID')})
 		print(result)
+
 		return render_template("index.html", user=result)
+
 	else:
 		return render_template('index.html')
+ 
 
-@app.route('/test')
-def test():
-	return render_template('results.html')
-
-@app.route('/login')
+@app.route('/login') 
 def login():
 	url = 'https://www.facebook.com/v2.9/dialog/oauth?'
 
@@ -52,9 +47,11 @@ def login():
 		'redirect_uri': oauth_url
 	}
 
+	# Create url with the arguments
 	url = url + urllib.parse.urlencode(args)
 
 	return redirect(url)
+
 
 @app.route('/oauth_callback')
 def parse_token():
@@ -67,23 +64,27 @@ def parse_token():
 		'code': token
 	}
 
-	r = api('v2.9/oauth/access_token', params=args)
+	r = fb_api('v2.9/oauth/access_token', params=args)
 
 	access_token = r['access_token']
 	expires_in = r['expires_in']
 
 	print('Access token is %s' % access_token)
 	
-	me = api('/v2.5/me', params={'access_token': access_token})
+	me = fb_api('/v2.5/me', params={'access_token': access_token})
 
 	# Add to DB
-	mongo.db.users.update({'fb_id': me['id']}, {"name" : me['name'], "fb_id" : me['id'], 'access_token': access_token},  upsert=True)
+	mongo.db.users.update(
+		{'fb_id': me['id']}, 
+		{"name" : me['name'], "fb_id" : me['id'], 'access_token': access_token},  
+		upsert=True
+		)
 
 	resp = make_response(redirect('/'))
 	resp.set_cookie('userID', me['id'])
 	return resp
 
-def api(endpoint, params):
+def fb_api(endpoint, params):
 	r = requests.get('https://graph.facebook.com/%s' % endpoint, params=params)
 	if r.status_code == 200:
 		return r.json()
@@ -103,23 +104,18 @@ def logout():
 def search():
 	return render_template("search.html")
 
+
 @app.route('/results', methods=['POST'])
 def search_post():
 	term = request.form['search-term']
 
 	# if info in local DB, display info from there 
 	restaurant_results = mongo.db.restaurants.find({"term":term})
-	# result = mongo.db.yelp.find_one({'term': term, 'latitude': BOS_LAT, 'longitude': BOS_LONG})
 
 	if restaurant_results.count() > 0:
 		document = [doc for doc in restaurant_results][0]
-		return "<br>".join(document['result'])
-
-# 	if result is not None:
-# 		# print result
-# 		business_names = [entry['name'] for entry in result['businesses']]
-# 		str_names = "<br>".join(business_names)
-# 		return str_names
+		print(document['result'])
+		return render_template('results.html', results = document['result'])
 
 	else:
 	# otherwise, make API call, store results in DB table(s), and display data as before
@@ -142,12 +138,15 @@ def search_post():
 			# CACHE: insert new search term and corresponding results into collection
 			mongo.db.restaurants.insert({"term" : term, "result" : business_names})
 
-			return render_template('results.html', results = resp.json()['businesses'])
+			print(resp.json()['businesses'])
+
+			return render_template('results.html', results = business_names)
 
 		else:
 			print('Response was not 200 (%s) for search'.format(resp.status_code))
 			return json.dumps('')		
 		
+
 def yelp_auth():
 	resp = requests.post('https://api.yelp.com/oauth2/token', data=config_secret.yelp_auth)
 
