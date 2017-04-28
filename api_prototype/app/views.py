@@ -130,7 +130,7 @@ def parse_token():
 	# Add to DB
 	mongo.db.users.update(
 		{'fb_id': me['id']}, 
-		{"name" : me['name'], "fb_id" : me['id'], 'access_token': access_token},  
+		{'$set': {"name" : me['name'], "fb_id" : me['id'], 'access_token': access_token}},  
 		upsert=True
 		)
 
@@ -162,9 +162,10 @@ def profile():
 			# set user object to contain profile
 			result['picture'] = picture['data']['url']
 
-		saved = result.get('saved', None)
+		saved = result.get('saved', [])
+		wishlist = result.get('wishlist', [])
 
-		return render_template('profile.html', user=result, saved=saved)
+		return render_template('profile.html', user=result, saved=saved, wishlist=wishlist)
 
 	else: 
 		return redirect('/login')
@@ -177,14 +178,13 @@ def logout():
 	# Set cookie back to 0	
 	resp.set_cookie('userID', '', expires=0)
 
-	# Set user's access cookie to ''
- 
 	return resp
 
 
 @app.route('/search')
 def search():
 	return respond("search.html", request.cookies.get('userID'))
+
 
 @app.route('/save')
 def save():
@@ -199,6 +199,21 @@ def save():
 			return respond('search.html', cookie=cookie, error="Unable to save :(")
 	else:
 		return respond('search.html', cookie=cookie, error="No Item to Save!")
+
+
+@app.route('/wishlist')
+def wishlist():
+	cookie = request.cookies.get('userID', None)
+	item = request.args.get('item', None)
+	item = ast.literal_eval(item)
+	if cookie is not None and item is not None and item is not "":
+		result = mongo.db.users.find_one_and_update({'fb_id': cookie}, {'$push': {'wishlist': item}})
+		if result is not None:
+			return respond('search.html', cookie=cookie, success="Added to Wishlist!")
+		else:
+			return respond('search.html', cookie=cookie, error="Unable to add to wishlist :(")
+	else:
+		return respond('search.html', cookie=cookie, error="No Item to Add to Wishlist!")
 
 	
 @app.route('/results')

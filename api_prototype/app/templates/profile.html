@@ -39,7 +39,11 @@
 	<div class="col-md-4">
 		<ul class="list-group">
 			<li class="list-group-item"><h4>Food Wish List</h4></li>
-			<li class="list-group-item"><p>Insert need-to-trys here</p> </li>
+			{% for item in wishlist %}
+				<li class="list-group-item">{{ item['resName'] }}</li>
+			{% else %}
+				<li class="list-group-item">Search for dishes and save your must-trys here!</li>
+			{% endfor %}
 		</ul>
 	</div>
 
