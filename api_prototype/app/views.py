@@ -11,6 +11,7 @@ from app import reviews
 import string
 # from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from pprint import pprint
+import ast
 
 app.config['MONGO_DBNAME'] = 'grumbl'
 mongo = PyMongo(app)
@@ -72,19 +73,19 @@ def api(url, endpoint, params={}, headers={}):
 		print('%s\n[%d] %s' % (r.url, r.status_code, r.text))
 		return None
 
-def respond(path, cookie):
+def respond(path, cookie, **kwargs):
 	if cookie is not None:
 		result = mongo.db.users.find_one({'fb_id': cookie})
 		if result is not None:
-			return render_template(path, user=result)
+			return render_template(path, user=result, **kwargs)
 		else:
-			return render_template(path)
+			return render_template(path, **kwargs)
 	else:
-		return render_template(path)
+		return render_template(path, **kwargs)
 
 @app.route('/')
 def index():
-	return respond("index.html", request.cookies.get('userID'))
+	return respond('index.html', request.cookies.get('userID'))
  
 
 @app.route('/login') 
@@ -140,17 +141,17 @@ def parse_token():
 
 @app.route('/profile')
 def profile():
-	if request.cookies.get('userID') is not None:
+	if request.cookies.get('userID', None) is not None:
 
 		result = mongo.db.users.find_one({'fb_id': request.cookies.get('userID')})
 
-		pprint(result)
+		if result is None:
+			return redirect('/login')
 
 		if not 'picture' in result:
+
 			# Get Profile pic
 			picture = fb_api('%s/picture' % result.get('fb_id'), params={'type': 'large', 'redirect': False})
-
-			pprint(picture)
 
 			# Stick in DB
 			mongo.db.users.update(
@@ -161,12 +162,12 @@ def profile():
 			# set user object to contain profile
 			result['picture'] = picture['data']['url']
 
-			pprint(result)
+		saved = result.get('saved', None)
 
-		return render_template('profile.html', user=result)
+		return render_template('profile.html', user=result, saved=saved)
 
 	else: 
-		return render_template('login.html')
+		return redirect('/login')
 
 
 @app.route('/logout')
@@ -185,22 +186,37 @@ def logout():
 def search():
 	return respond("search.html", request.cookies.get('userID'))
 
+@app.route('/save')
+def save():
+	cookie = request.cookies.get('userID', None)
+	item = request.args.get('item', None)
+	item = ast.literal_eval(item)
+	if cookie is not None and item is not None and item is not "":
+		result = mongo.db.users.find_one_and_update({'fb_id': cookie}, {'$push': {'saved': item}})
+		if result is not None:
+			return respond('search.html', cookie=cookie, success="Saved!")
+		else:
+			return respond('search.html', cookie=cookie, error="Unable to save :(")
+	else:
+		return respond('search.html', cookie=cookie, error="No Item to Save!")
 
-@app.route('/results', methods=['POST'])
+	
+@app.route('/results')
 def search_post():
 	# Make sure the string is converted to lowercase
-	term = request.form['search-term'].lower()
+	term = request.args.get('search-term', None)
+	cookie = request.cookies.get('userID', None)
 
 	if term == None:
 		print("You didn't provide a search term!")
-		return render_template("results.html")
+		return respond('results.html', cookie=cookie)
 
 	# if info in local DB collection 'food', display info from there 
 	resResults_inDB = mongo.db.food.find_one({"term": term})
 
 	# fix return result format (not just names)
 	if resResults_inDB is not None:
-		return render_template("results.html", results=resResults_inDB.get('result'), term=term)
+		return respond('results.html', cookie=cookie, results=resResults_inDB.get('result'), term=term)
 
 	else:
 		# otherwise, make API call, 
@@ -211,12 +227,12 @@ def search_post():
 		search_resp = eatstreet_api('v1/restaurant/search', params=params)
 
 		if search_resp is None:
-			return render_template("results.html")
+			return respond("results.html", cookie=cookie)
 
 		restaurants = search_resp.get('restaurants')
 
 		if len(restaurants) == 0:
-			return json.dumps(search_resp.json()) # Other response
+			return respond('search.html', cookie=cookie, error="No Results!")
 
 		resResults = []
 		count = 0
@@ -292,6 +308,6 @@ def search_post():
 		## change mongo schema format
 		mongo.db.food.insert({"term" : term, "result" : resResults})
 
-		return render_template("results.html", results=resResults, term=term)
+		return respond("results.html", cookie=cookie, results=resResults, term=term)
 
 

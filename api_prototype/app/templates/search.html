@@ -3,15 +3,23 @@
 {% extends "base.html" %}
 {% block title %}Search{% endblock %}
 {% block body %}
+
+{% if error %}
+	<div class="alert alert-danger" role="alert">{{error}}</div>
+{% endif %}
+{% if success %}
+	<div class="alert alert-success" role="alert">{{success}}</div>
+{% endif %}
+
 <div class="jumbotron">
 
   <h1>Hungry?</h1>
   <h2>Search below for the item you're craving</h2>
   <br>
 
-<form action="/results" method="POST">
+<form action="/results" method="GET">
 	<input type="text", name="search-term">
-	<input type="submit" name="search-form" value="Search">
+	<input type="submit" value="Search">
 </form>
 
 </div>

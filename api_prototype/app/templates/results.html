@@ -12,20 +12,30 @@
 
 {% for result in results %}
 
-	<div class="jumbotron">
+	<div class="well">
 		<div class="row">
 			<div class="col-md-12">
-				<h2>Dish: {{ result.resDish }}</h2>
+				<h2>{{ result.resDish }}</h2>
 			</div>
-			<div class="col-md-2">
-				<img src="{{ result.resLogoUrl }}">
+			<div class="col-md-3">
+				<img class="thumbnail" src="{{ result.resLogoUrl }}">
 			</div>
-			<div class="col-md-10">
-				<p>Name: {{ result.resName }}</p>
+			<div class="col-md-9">
+				<p>{{ result.resName }}</p>
 				<p>Stars: {{ result.resStars }}</p>
-				<p>Address: <a href="http://maps.google.com/?q={{result.resAddress}}+Boston+MA">{{ result.resAddress }}</a></p>
+				<p><a href="http://maps.google.com/?q={{result.resAddress}}+{{result.resName}}">{{ result.resAddress }}</a></p>
 			</div>
 		</div>
+		{% if user %}
+		<div class="row">
+			<div class="col-md-2">
+				<form action="/save" method="get">
+					<input type="text" style="display: none;" name="item" value="{{result}}"></input>
+					<button type="submit" class="btn btn-success btn-sm">Save</button>
+				</form>
+			</div>
+		</div>
+		{% endif %}
 	</div>
 
 {% else %}
