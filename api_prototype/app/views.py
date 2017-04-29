@@ -57,7 +57,7 @@ def eatstreet_api(endpoint, params):
 	return api(url=url, endpoint=endpoint, params=params, headers=headers)
 
 def yelp_api(endpoint, params, headers):
-	url = 'https://api.yelp.com/'
+	url = 'https://api.yelp.com'
 	return api(url, endpoint, params, headers)
 
 def fb_api(endpoint, params):
@@ -285,9 +285,11 @@ def search_post():
 				if len(businesses) > 0:
 					print("FOUND BUSINESS ON YELP!")
 					resId = businesses[0]['id']
+					print(resId)
 					resStars = businesses[0]['rating']
+					print(resStars)
 					resLink = 'https://www.yelp.com/biz/' + resId
-
+					print(resLink)
 
 			# Check menu for term and add restaurant to results if dish is found
 			for itemName in resMenu:
@@ -314,8 +316,6 @@ def search_post():
 									 }
 
 					resResults.append(restaurantInfo)
-
-
 
 			count += 1
 
