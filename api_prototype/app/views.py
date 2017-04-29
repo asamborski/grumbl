@@ -84,8 +84,8 @@ def respond(path, cookie, **kwargs):
 		return render_template(path, **kwargs)
 
 @app.route('/')
-def index():
-	return respond('index.html', request.cookies.get('userID'))
+def index(error=None):
+	return respond('index.html', request.cookies.get('userID'), error=error)
  
 
 @app.route('/login') 
@@ -107,36 +107,39 @@ def login():
 
 @app.route('/oauth_callback')
 def parse_token():
-	FB_APP_ID, FB_APP_SECRET, FB_APP_NAME = facebook_auth()
+	try:
+		FB_APP_ID, FB_APP_SECRET, FB_APP_NAME = facebook_auth()
 
-	token = request.args.get('code') 
+		token = request.args.get('code') 
 
-	args = {
-		'client_id': FB_APP_ID,
-		'redirect_uri': oauth_url,
-		'client_secret': FB_APP_SECRET,
-		'code': token
-	}
+		args = {
+			'client_id': FB_APP_ID,
+			'redirect_uri': oauth_url,
+			'client_secret': FB_APP_SECRET,
+			'code': token
+		}
 
-	r = fb_api('v2.9/oauth/access_token', params=args)
+		r = fb_api('v2.9/oauth/access_token', params=args)
 
-	access_token = r['access_token']
-	expires_in = r['expires_in']
+		access_token = r['access_token']
+		expires_in = r['expires_in']
 
-	print('Access token is %s' % access_token)
-	
-	me = fb_api('/v2.5/me', params={'access_token': access_token})
+		print('Access token is %s' % access_token)
+		
+		me = fb_api('/v2.5/me', params={'access_token': access_token})
 
-	# Add to DB
-	mongo.db.users.update(
-		{'fb_id': me['id']}, 
-		{'$set': {"name" : me['name'], "fb_id" : me['id'], 'access_token': access_token}},  
-		upsert=True
-		)
+		# Add to DB
+		mongo.db.users.update(
+			{'fb_id': me['id']}, 
+			{'$set': {"name" : me['name'], "fb_id" : me['id'], 'access_token': access_token}},  
+			upsert=True
+			)
 
-	resp = make_response(redirect('/'))
-	resp.set_cookie('userID', me['id'])
-	return resp
+		resp = make_response(redirect('/'))
+		resp.set_cookie('userID', me['id'])
+		return resp
+	except:
+		return index("Access denied. Please try again!")
 
 
 @app.route('/profile')
