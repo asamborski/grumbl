@@ -138,6 +138,7 @@ def parse_token():
 		resp = make_response(redirect('/'))
 		resp.set_cookie('userID', me['id'])
 		return resp
+
 	except:
 		return index("Access denied. Please try again!")
 
@@ -176,12 +177,21 @@ def profile():
 
 @app.route('/logout')
 def logout():
-	resp = make_response(redirect('/'))
 
-	# Set cookie back to 0	
-	resp.set_cookie('userID', '', expires=0)
+		user = request.cookies.get('userID', None)
+		resp = make_response(redirect('/'))
 
-	return resp
+		# Set cookie back to 0	
+		resp.set_cookie('userID', '', expires=0)
+
+		if user is not None:
+			mongo.db.users.update(
+					{'fb_id': user}, 
+					{'$set': {'access_token': ''}},  
+					upsert=True
+					)
+
+		return resp
 
 
 @app.route('/search')
