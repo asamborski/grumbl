@@ -239,6 +239,7 @@ def search_post():
 		# store results in DB table(s), and display data as before
 
 		## EatStreet API – search for restaurants in city coordinates
+
 		params = {"street-address":loc,"method":"both","pickup-radius":"2","search":term}
 		search_resp = eatstreet_api('v1/restaurant/search', params=params)
 
