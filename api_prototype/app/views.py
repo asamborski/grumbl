@@ -238,7 +238,7 @@ def search_post():
 		# store results in DB table(s), and display data as before
 
 		## EatStreet API – search for restaurants in city coordinates
-		params = {"latitude":"40.7128","longitude":"-74.0059","method":"both","pickup-radius":"2","search":term}
+		params = {"latitude":BOS_LAT,"longitude":BOS_LONG,"method":"both","pickup-radius":"2","search":term}
 		search_resp = eatstreet_api('v1/restaurant/search', params=params)
 
 		if search_resp is None:
