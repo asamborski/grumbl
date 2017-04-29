@@ -17,8 +17,31 @@
   <h2>Search below for the item you're craving</h2>
   <br>
 
+<!-- Search bar with filter options-->
 <form action="/results" method="GET">
-	<input type="text", name="search-term">
+	<input type="text", name="search-term", placeholder="Food Item">
+
+	<br>
+
+	<input type="text", name="user-loc", placeholder="Location">
+
+	<br><br>
+
+	<select name="Price Filter">
+	<option value="Price Range" selected> Price Range </option>
+	<option value=1> $ </option>
+	<option value=2> $$ </option>
+	<option value=3> $$$ </option>
+	<option value=4> $$$$ </option>
+	</select>
+
+	<select name="Range Filter">
+	<option value="Sort By" selected> Filter </option>
+	<option value=1> Distance </option>
+	<option value=2> Rating </option>
+	</select>
+
+	<br><br>
 	<input type="submit" value="Search">
 </form>
 

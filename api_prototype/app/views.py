@@ -220,6 +220,7 @@ def wishlist():
 def search_post():
 	# Make sure the string is converted to lowercase
 	term = request.args.get('search-term', None)
+	loc = request.args.get('user-loc', None)
 	cookie = request.cookies.get('userID', None)
 
 	if term == None:
@@ -227,7 +228,7 @@ def search_post():
 		return respond('results.html', cookie=cookie)
 
 	# if info in local DB collection 'food', display info from there 
-	resResults_inDB = mongo.db.food.find_one({"term": term})
+	resResults_inDB = mongo.db.food.find_one({"query": (term, loc)})
 
 	# fix return result format (not just names)
 	if resResults_inDB is not None:
@@ -238,7 +239,7 @@ def search_post():
 		# store results in DB table(s), and display data as before
 
 		## EatStreet API – search for restaurants in city coordinates
-		params = {"latitude":"40.7128","longitude":"-74.0059","method":"both","pickup-radius":"2","search":term}
+		params = {"street-address":loc,"method":"both","pickup-radius":"2","search":term}
 		search_resp = eatstreet_api('v1/restaurant/search', params=params)
 
 		if search_resp is None:
@@ -253,7 +254,7 @@ def search_post():
 		count = 0
 		for restaurant in restaurants:
 
-			if count == 10: break # limit to 10 restaurants
+			if count == 20: break # limit to 10 restaurants
 
 			resKey = restaurant.get('apiKey')
 
@@ -278,6 +279,7 @@ def search_post():
 
 			resStars = None # no Yelp restaurant stars unless rating is found
 			resLink = False # no Yelp restaurant link by default unless one is found
+			resPrice = None # no price by default
 			if yelp_resp is not None:
 				print('Response 200 for Yelp search')
 
@@ -285,9 +287,11 @@ def search_post():
 				if len(businesses) > 0:
 					print("FOUND BUSINESS ON YELP!")
 					resId = businesses[0]['id']
-					print(resId)
+					print('resID : ' + str(resId))
+					resPrice = businesses[0]['price']
+					print('resPrice : ' + str(resPrice))
 					resStars = businesses[0]['rating']
-					print(resStars)
+					print('resStars : ' + str(resStars))
 					resLink = 'https://www.yelp.com/biz/' + resId
 					print(resLink)
 
@@ -309,8 +313,10 @@ def search_post():
 					restaurantInfo = {"resKey": resKey,
 									  "resName": resName,
 									  "resAddress": address,
-									  "resDish": itemName,
 									  'resStars': resStars,
+									  "resDish": itemName,
+									  "resPrice": resPrice,
+									  #"resDistance: resDistance",
 									  #"dishSentiment":dishReviews, 
 									  "resLogoUrl": resLogoUrl
 									 }
@@ -321,7 +327,7 @@ def search_post():
 
 		## CACHE: insert new search term and corresponding results into 'food' collection
 		## change mongo schema format
-		mongo.db.food.insert({"term" : term, "result" : resResults})
+		mongo.db.food.insert({"query" : (term, loc), "result" : resResults})
 
 		return respond("results.html", cookie=cookie, results=resResults, term=term)
 
