@@ -7,3 +7,5 @@ pip (9.0.1)
 setuptools (27.2.0)
 Werkzeug (0.12)
 wheel (0.29.0)
+flask_pymongo
+pprint 
