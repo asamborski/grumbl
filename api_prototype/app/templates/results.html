@@ -8,6 +8,26 @@
   <h1>Restaurants Serving {{ term }}</h2>
   <br>
 
+  <form name='filters' action='/results' method='GET'>
+  	<input name='search-term' value='{{ term }}' style='display:none;'>
+  	<input name='user-loc' value='{{ loc }}' style='display:none;'>
+
+  	<select name="price-range">
+	<option value="Price Range" selected> Price Range </option>
+	<option value=1> $ </option>
+	<option value=2> $$ </option>
+	<option value=3> $$$ </option>
+	<option value=4> $$$$ </option>
+	</select>
+
+	<select name="filter">
+	<option value="Sort By" selected> Filter </option>
+	<option value=1> Distance </option>
+	<option value=2> Rating </option>
+	</select>
+	<button type="submit">Filter results</button>
+  </form>
+
 </div>
 
 {% for result in results %}
@@ -23,6 +43,8 @@
 			<div class="col-md-9">
 				<p>{{ result.resName }}</p>
 				<p>Stars: {{ result.resStars }}</p>
+				<p>Price: {{ result.resPrice }}</p>
+				<p>Distance: {{ result.resDistance }}</p>
 				<p><a href="http://maps.google.com/?q={{result.resName}}+{{result.resAddress}}+Boston+MA">{{ result.resAddress }}</a></p>
 			</div>
 		</div>

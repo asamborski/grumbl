@@ -64,6 +64,11 @@ def fb_api(endpoint, params):
 	url = 'https://graph.facebook.com'
 	return api(url, endpoint, params)
 
+def gmaps_api(endpoint, params):
+	url = 'https://maps.googleapis.com/maps/api'		
+	headers = { 'cache-control': "no-cache" }
+	return api(url=url, endpoint=endpoint, params=params, headers=headers)
+
 def api(url, endpoint, params={}, headers={}):
 	r = requests.get('%s/%s' % (url, endpoint), params=params, headers=headers)
 	if r.status_code == 200:
@@ -113,7 +118,6 @@ def login():
 	url = url + urllib.parse.urlencode(args)
 
 	return redirect(url)
-
 
 @app.route('/oauth_callback')
 def parse_token():
@@ -256,6 +260,9 @@ def search_post():
 	loc = request.args.get('user-loc', None)
 	cookie = request.cookies.get('userID', None)
 
+	price_range = request.args.get('price-range', None)
+	filter_by = request.args.get('filter', None)
+
 	if term == None:
 		print("You didn't provide a search term!")
 		return respond('results.html', cookie=cookie)
@@ -265,14 +272,24 @@ def search_post():
 
 	# fix return result format (not just names)
 	if resResults_inDB is not None:
-		return respond('results.html', cookie=cookie, results=resResults_inDB.get('result'), term=term)
+		resResults = resResults_inDB.get('result')
+		# adjust results based on filter params
+		if price_range is not None and price_range in ['1','2','3','4']:
+			resResults = [items for items in resResults if len(items['resPrice']) <= int(price_range)]
+
+		if filter_by is not None and filter_by in ['1','2']:
+			if filter_by == '1': # by distance
+				resResults= sorted([items for items in resResults], key=lambda x: x['resDistance'])
+			if filter_by == '2': # by rating
+				resResults = sorted([items for items in resResults], key=lambda x: x['resStars'], reverse=True)
+
+		return respond('results.html', cookie=cookie, results=resResults, term=term, loc=loc)
 
 	else:
 		# otherwise, make API call, 
 		# store results in DB table(s), and display data as before
 
 		## EatStreet API – search for restaurants in city coordinates
-
 		params = {"street-address":loc,"method":"both","pickup-radius":"2","search":term}
 		search_resp = eatstreet_api('v1/restaurant/search', params=params)
 
@@ -303,17 +320,23 @@ def search_post():
 			# If so, this restaurant is an option				
 			resName = restaurant.get("name")
 			address = restaurant.get("streetAddress")
+
+			# Get distance from specified address 
+			gMapsParams = {"units":"imperial","origins":loc,"destinations":address,"key":config_secret.gmaps_auth['api-key']}
+			resDistance = float(gmaps_api(endpoint='distancematrix/json', \
+				                          params=gMapsParams)['rows'][0]['elements'][0]['distance']['text'].split(' mi')[0].replace(',',''))
+
 			resLogoUrl = restaurant.get("logoUrl")
 			
 			# Remove punctuation
-			resMenu = [item['name'].lower() for itemGroup in menu_resp for item in itemGroup['items']]
+			resMenu = [item['name'	].lower() for itemGroup in menu_resp for item in itemGroup['items']]
 
 			# Get this restaurant's Yelp biz id
 			yelp_resp = yelp_api('v3/businesses/search', params={'location': address, 'radius': 10}, headers={'Authorization' : "Bearer " + yelp_auth()})
 
-			resStars = None # no Yelp restaurant stars unless rating is found
-			resLink = False # no Yelp restaurant link by default unless one is found
-			resPrice = None # no price by default
+			resStars = 'N/A' # no Yelp restaurant stars unless rating is found
+			resLink = False  # no Yelp restaurant link by default unless one is found
+			resPrice = 'N/A' # no price by default
 			if yelp_resp is not None:
 				print('Response 200 for Yelp search')
 
@@ -322,7 +345,10 @@ def search_post():
 					print("FOUND BUSINESS ON YELP!")
 					resId = businesses[0]['id']
 					print('resID : ' + str(resId))
-					resPrice = businesses[0]['price']
+					try:
+						resPrice = businesses[0]['price']
+					except:
+						print('Yelp business result is ' + str(businesses[0]))
 					print('resPrice : ' + str(resPrice))
 					resStars = businesses[0]['rating']
 					print('resStars : ' + str(resStars))
@@ -350,7 +376,7 @@ def search_post():
 									  'resStars': resStars,
 									  "resDish": itemName,
 									  "resPrice": resPrice,
-									  #"resDistance: resDistance",
+									  "resDistance": resDistance,
 									  #"dishSentiment":dishReviews, 
 									  "resLogoUrl": resLogoUrl
 									 }
@@ -363,6 +389,6 @@ def search_post():
 		## change mongo schema format
 		mongo.db.food.insert({"query" : (term, loc), "result" : resResults})
 
-		return respond("results.html", cookie=cookie, results=resResults, term=term)
+		return respond("results.html", cookie=cookie, results=resResults, term=term, loc=loc)
 
 
