@@ -252,6 +252,28 @@ def wishlist():
 	else:
 		return respond('search.html', cookie=cookie, error="No Item to Add to Wishlist!")
 
+@app.route('/delete')
+def delete():
+	resKey = request.args.get('resKey', None)
+	saved_or_wishlist = request.args.get('type', None)
+	cookie = request.cookies.get('userID', None)
+	
+	if not None in (resKey, saved_or_wishlist, cookie):
+		if saved_or_wishlist == 'saved':
+			result = mongo.db.users.update(
+					{'fb_id': cookie}, 
+					{'$pull': {'saved': {'resKey': resKey}}}
+					)
+
+		elif saved_or_wishlist == 'wishlist':
+			result = mongo.db.users.update(
+					{'fb_id': cookie}, 
+					{'$pull': {'wishlist': {'resKey': resKey}}}
+					)
+
+	return redirect('/profile')
+
+
 	
 @app.route('/results')
 def search_post():
