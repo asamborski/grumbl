@@ -83,9 +83,19 @@ def respond(path, cookie, **kwargs):
 	else:
 		return render_template(path, **kwargs)
 
+
 @app.route('/')
-def index(error=None):
-	return respond('index.html', request.cookies.get('userID'), error=error)
+def index(error=None, success=None, delete_account=False):
+
+	if delete_account and request.cookies.get('userID', None) is not None:
+
+	 		mongo.db.users.remove({'fb_id': request.cookies.get('userID')})
+	 		resp = make_response(render_template('index.html', success=success))
+	 		resp.set_cookie('userID', '', expires=0)
+
+	 		return resp
+	else:		
+		return respond('index.html', request.cookies.get('userID'), error=error, success=success)
  
 
 @app.route('/login') 
@@ -141,6 +151,16 @@ def parse_token():
 
 	except:
 		return index("Access denied. Please try again!")
+
+
+@app.route('/delete_account', methods=['POST'])
+def delete_account():
+	if request.cookies.get('userID', None) is not None: 
+
+ 		return index(success='Successfully deleted your account. We are sorry to see you go.', delete_account=True)
+
+	else:
+		return respond('profile.html', cookie=cookie, error="Error deleting user! Are you logged in?")
 
 
 @app.route('/profile')
