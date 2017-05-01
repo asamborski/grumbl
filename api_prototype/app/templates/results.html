@@ -50,12 +50,13 @@
 		</div>
 		{% if user %}
 		<div class="row">
-			<div class="col-md-2">
-				<form action="/save" method="get">
+			<div class="col-md-3">
+				<form action="/save" method="get" class='text-center'>
 					<input type="text" style="display: none;" name="item" value="{{result}}"></input>
 					<button type="submit" class="btn btn-success btn-sm">Save</button>
 				</form>
-				<form action="/wishlist" method="get">
+				<br/>
+				<form action="/wishlist" method="get" class='text-center'>
 					<input type="text" style="display: none;" name="item" value="{{result}}"></input>
 					<button type="submit" class="btn btn-success btn-sm">Add to Wishlist</button>
 				</form>
